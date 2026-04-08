@@ -85,6 +85,13 @@ schema = Quiz.yaml_schema
 The YamlExporter automatically infers types based on the database column types. JSON and JSONB columns are treated as
 objects in the generated schema.
 
+## Regression tests (nested associations)
+
+Run `bundle exec rake test`. The file `test/nested_association_regression_test.rb` documents expected
+behavior for **Quiz → Question → Answer** and **Training → join (VM)** style imports. Those tests
+are currently **expected to fail** until `update_collection` matches nested rows by stable keys (e.g.
+`id` in YAML), not only by array index.
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/itadventurer/yaml_exporter.
