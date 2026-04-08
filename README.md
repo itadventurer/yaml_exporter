@@ -80,6 +80,17 @@ To generate a JSON schema for validation:
 schema = Quiz.yaml_schema
 ```
 
+## Example
+
+A self-contained, runnable example lives in [`examples/quiz.rb`](examples/quiz.rb). It sets up an in-memory SQLite
+database, defines a Quiz → Questions → Answers model hierarchy, and demonstrates exporting, schema generation, and
+round-trip importing:
+
+```
+$ gem install sqlite3   # one-time prerequisite
+$ ruby examples/quiz.rb
+```
+
 ## Configuration
 
 The YamlExporter automatically infers types based on the database column types. JSON and JSONB columns are treated as
