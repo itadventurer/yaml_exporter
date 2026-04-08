@@ -92,6 +92,44 @@ behavior for **Quiz → Question → Answer** and **Training → join (VM)** sty
 are currently **expected to fail** until `update_collection` matches nested rows by stable keys (e.g.
 `id` in YAML), not only by array index.
 
+## CI (GitHub Actions)
+
+Add the following as **`.github/workflows/test.yml`** in the repository (not shipped in the gem):
+
+```yaml
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['3.3', '3.4']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+
+      - name: Run tests
+        run: bundle exec rake test
+```
+
+This runs `bundle exec rake test` on Ruby 3.3 and 3.4 for pushes and pull requests to `main`.
+The regression tests currently fail until nested `has_many` matching is fixed; the job will
+fail accordingly until then (or you can add `continue-on-error` for that test file only).
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/itadventurer/yaml_exporter.
