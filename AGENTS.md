@@ -22,14 +22,13 @@ Then re-run `bundle install` in the workspace.
 
 ### Key commands
 
-| Task | Command |
-|------|---------|
-| Install dependencies | `bundle install` |
-| Build the gem | `gem build yaml_exporter.gemspec` |
+| Task                 | Command                                                     |
+| -------------------- | ----------------------------------------------------------- |
+| Install dependencies | `bundle install`                                            |
+| Build the gem        | `gem build yaml_exporter.gemspec`                           |
 | Verify the gem loads | `ruby -e 'require_relative "lib/yaml_exporter"; puts "OK"'` |
 
 ### Notes
 
-- There is no test suite (`spec/` or `test/`) in this repo, and no linter configuration. Validation is done by building the gem and running it against an in-memory SQLite ActiveRecord setup.
 - The gem depends on `activerecord`, `activesupport`, and `json-schema` at runtime. For manual testing, `sqlite3` is also needed (`gem install sqlite3`).
 - The gemspec uses `git ls-files` to determine included files — new files must be tracked by git to be included in builds.
