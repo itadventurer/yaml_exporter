@@ -12,13 +12,7 @@ require_relative 'test_helper'
 # in YAML, not by index.
 class NestedAssociationRegressionTest < Minitest::Test
   def setup
-    HarnessResponse.delete_all
-    HarnessAnswer.delete_all
-    HarnessQuestion.delete_all
-    HarnessQuiz.delete_all
-    HarnessTrainingVm.delete_all
-    HarnessTraining.delete_all
-    HarnessVm.delete_all
+    reset_test_database!
   end
 
   # --- Quiz -> Question -> Answer ---

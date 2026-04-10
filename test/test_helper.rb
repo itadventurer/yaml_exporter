@@ -2,6 +2,7 @@
 
 require 'bundler/setup'
 require 'active_record'
+require 'yaml'
 require 'yaml_exporter'
 require 'minitest/autorun'
 require 'minitest/pride'
@@ -11,126 +12,33 @@ ActiveRecord::Base.establish_connection(
   database: ':memory:'
 )
 
-ActiveRecord::Schema.define do
-  create_table :harness_quizzes, force: true do |t|
-    t.string :title
-  end
+load File.expand_path('support/schema.rb', __dir__)
+load File.expand_path('support/models.rb', __dir__)
 
-  create_table :harness_questions, force: true do |t|
-    t.references :harness_quiz, null: false, foreign_key: true
-    t.string :text
-    t.integer :position
-  end
+module YamlFixturePaths
+  FIXTURE_YAML_DIR = File.expand_path('fixtures/yaml', __dir__)
+end
 
-  create_table :harness_answers, force: true do |t|
-    t.references :harness_question, null: false, foreign_key: true
-    t.string :text
-    t.boolean :is_correct, default: false, null: false
-  end
+def reset_test_database!
+  [ArticleNote, Article, Response, Answer, Question, Quiz, TrainingVm, Training, Vm].each(&:delete_all)
+  return unless ActiveRecord::Base.connection.adapter_name.match?(/sqlite/i)
 
-  create_table :harness_trainings, force: true do |t|
-    t.string :name
-  end
-
-  create_table :harness_vms, force: true do |t|
-    t.string :title
-  end
-
-  create_table :harness_training_vms, force: true do |t|
-    t.references :harness_training, null: false, foreign_key: true
-    t.references :harness_vm, null: false, foreign_key: true
-    t.integer :position, default: 0, null: false
-  end
-
-  create_table :harness_responses, force: true do |t|
-    t.references :harness_quiz, null: false, foreign_key: true
-    t.references :harness_question, null: false, foreign_key: true
-    t.references :harness_answer, null: false, foreign_key: true
-  end
-
-  create_table :harness_articles, force: true do |t|
-    t.string :title
-    t.references :harness_vm, foreign_key: true, null: true
-  end
-
-  create_table :harness_article_notes, force: true do |t|
-    t.references :harness_article, null: false, foreign_key: true
-    t.string :body
+  %w[article_notes articles responses answers questions quizzes training_vms trainings vms].each do |table|
+    ActiveRecord::Base.connection.execute(
+      "DELETE FROM sqlite_sequence WHERE name=#{ActiveRecord::Base.connection.quote(table)}"
+    )
+  rescue ActiveRecord::StatementInvalid
+    # table never had a row; sequence entry may be absent
   end
 end
 
-class HarnessQuiz < ActiveRecord::Base
-  include YamlExporter
+class Minitest::Test
+  # Multi-document YAML fixtures: pass doc: index (0-based) to select one document as a single import string.
+  def yaml_fixture(name, doc: 0)
+    path = File.join(YamlFixturePaths::FIXTURE_YAML_DIR, "#{name}.yml")
+    docs = YAML.load_stream(File.read(path))
+    raise ArgumentError, "fixture #{name}.yml: no document at index #{doc}" if doc.negative? || doc >= docs.size
 
-  has_many :harness_questions, dependent: :destroy
-  has_many :harness_responses, dependent: :destroy
-
-  yaml_structure do
-    yaml_attribute :title
-    yaml_has_many :harness_questions do
-      yaml_attribute :text, :position
-      yaml_has_many :harness_answers do
-        yaml_attribute :text, :is_correct
-      end
-    end
+    YAML.dump(docs[doc])
   end
-end
-
-class HarnessQuestion < ActiveRecord::Base
-  belongs_to :harness_quiz
-  has_many :harness_answers, dependent: :destroy
-  has_many :harness_responses, dependent: :destroy
-end
-
-class HarnessAnswer < ActiveRecord::Base
-  belongs_to :harness_question
-  has_many :harness_responses, dependent: :destroy
-end
-
-class HarnessTraining < ActiveRecord::Base
-  include YamlExporter
-
-  has_many :harness_training_vms, dependent: :destroy
-  has_many :harness_vms, through: :harness_training_vms
-
-  yaml_structure do
-    yaml_attribute :name
-    yaml_has_many :harness_training_vms do
-      yaml_attribute :position, :harness_vm_id
-    end
-  end
-end
-
-class HarnessTrainingVm < ActiveRecord::Base
-  belongs_to :harness_training
-  belongs_to :harness_vm
-end
-
-class HarnessVm < ActiveRecord::Base
-  has_many :harness_training_vms, dependent: :destroy
-  has_many :harness_trainings, through: :harness_training_vms
-end
-
-class HarnessResponse < ActiveRecord::Base
-  belongs_to :harness_quiz
-  belongs_to :harness_question
-  belongs_to :harness_answer
-end
-
-class HarnessArticle < ActiveRecord::Base
-  include YamlExporter
-
-  belongs_to :harness_vm, optional: true
-  has_one :harness_article_note, dependent: :destroy
-
-  yaml_structure do
-    yaml_attribute :title, :harness_vm_id
-    yaml_has_one :harness_article_note do
-      yaml_attribute :body
-    end
-  end
-end
-
-class HarnessArticleNote < ActiveRecord::Base
-  belongs_to :harness_article
 end
