@@ -19,10 +19,6 @@ module YamlSerializable
       @structure[:associations][name] = { type: :has_many, structure: self.class.new(&block).build }
     end
 
-    def yaml_condition(&block)
-      @structure[:condition] = block
-    end
-
     def build
       @structure
     end

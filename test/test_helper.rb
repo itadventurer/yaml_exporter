@@ -47,6 +47,16 @@ ActiveRecord::Schema.define do
     t.references :harness_question, null: false, foreign_key: true
     t.references :harness_answer, null: false, foreign_key: true
   end
+
+  create_table :harness_articles, force: true do |t|
+    t.string :title
+    t.references :harness_vm, foreign_key: true, null: true
+  end
+
+  create_table :harness_article_notes, force: true do |t|
+    t.references :harness_article, null: false, foreign_key: true
+    t.string :body
+  end
 end
 
 class HarnessQuiz < ActiveRecord::Base
@@ -105,4 +115,22 @@ class HarnessResponse < ActiveRecord::Base
   belongs_to :harness_quiz
   belongs_to :harness_question
   belongs_to :harness_answer
+end
+
+class HarnessArticle < ActiveRecord::Base
+  include YamlExporter
+
+  belongs_to :harness_vm, optional: true
+  has_one :harness_article_note, dependent: :destroy
+
+  yaml_structure do
+    yaml_attribute :title, :harness_vm_id
+    yaml_has_one :harness_article_note do
+      yaml_attribute :body
+    end
+  end
+end
+
+class HarnessArticleNote < ActiveRecord::Base
+  belongs_to :harness_article
 end

@@ -85,6 +85,30 @@ module YamlSerializable
           end
         end
         @object.save!
+        persist_dirty_associated_records(@object, @structure)
+      end
+    end
+
+    # In-memory updates on associated records are not persisted by +save+ on the root when
+    # +autosave+ is false (Rails default for +has_many+). Save leaves-to-root so FKs exist.
+    def persist_dirty_associated_records(object, structure)
+      assocs = structure[:associations]
+      return if assocs.nil? || assocs.empty?
+
+      assocs.each do |name, config|
+        case config[:type]
+        when :has_many
+          object.send(name).each do |child|
+            child.save! if child.has_changes_to_save?
+            persist_dirty_associated_records(child, config[:structure])
+          end
+        when :has_one
+          nested = object.send(name)
+          next unless nested
+
+          nested.save! if nested.has_changes_to_save?
+          persist_dirty_associated_records(nested, config[:structure])
+        end
       end
     end
 
