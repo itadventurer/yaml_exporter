@@ -1,0 +1,123 @@
+# Multi-document Quiz fixtures (pass yaml_fixture('quiz', doc: N)):
+# 0 — one question, two answers (default shape for most tests)
+# 1 — removed
+# 2 — v2 after that update
+# 3 — two top-level questions (pair with doc 4 to drop the second question and extra answers on First)
+# 4 — First + answer A only (after doc 0 or doc 3 to “shorten answers” / prune to one question)
+# 5 — one question, single answer “Only” (pair with doc 6 for “add answer”)
+# 6 — same quiz as doc 5 with two answers
+# 7 — regression: answers reordered in YAML (Beta before Alpha)
+# 8 — invalid root attribute (schema violation)
+--- # 0
+title: One question, two answers
+quiz_type: multiple_choice
+questions:
+  - text: First
+    position: 1
+    question_type: single_choice
+    feedback: ""
+    answers:
+      - text: A
+        is_correct: true
+        impact: 0
+      - text: B
+        is_correct: false
+        impact: 0
+--- # 1
+--- # 2
+title: One question, two answers, renamed everything
+quiz_type: multiple_choice
+questions:
+  - text: New Q
+    position: 1
+    question_type: single_choice
+    feedback: ""
+    answers:
+      - text: NewA
+        is_correct: true
+        impact: 0
+      - text: NewB
+        is_correct: false
+        impact: 0
+--- # 3
+title: Test to remove the second question and extra answers on First
+quiz_type: multiple_choice
+questions:
+  - text: First
+    position: 1
+    question_type: single_choice
+    feedback: ""
+    answers:
+      - text: A
+        is_correct: true
+        impact: 0
+      - text: B
+        is_correct: false
+        impact: 0
+      - text: C
+        is_correct: false
+        impact: 0
+  - text: Second
+    position: 2
+    question_type: single_choice
+    feedback: ""
+    answers:
+      - text: a2
+        is_correct: false
+        impact: 0
+--- # 4
+title: Qz
+quiz_type: multiple_choice
+questions:
+  - text: First
+    position: 1
+    question_type: single_choice
+    feedback: ""
+    answers:
+      - text: A
+        is_correct: true
+        impact: 0
+--- # 5
+title: T
+quiz_type: multiple_choice
+questions:
+  - text: Q1
+    position: 1
+    question_type: single_choice
+    feedback: ""
+    answers:
+      - text: Only
+        is_correct: true
+        impact: 0
+--- # 6
+title: T
+quiz_type: multiple_choice
+questions:
+  - text: Q1
+    position: 1
+    question_type: single_choice
+    feedback: ""
+    answers:
+      - text: A
+        is_correct: true
+        impact: 0
+      - text: B
+        is_correct: false
+        impact: 0
+--- # 7
+title: Q
+quiz_type: multiple_choice
+questions:
+  - text: Q1
+    position: 1
+    question_type: single_choice
+    feedback: ""
+    answers:
+      - text: Beta
+        is_correct: false
+        impact: 0
+      - text: Alpha
+        is_correct: true
+        impact: 0
+--- # 8
+title: []
