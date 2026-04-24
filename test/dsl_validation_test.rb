@@ -7,6 +7,25 @@ module DslValidationRuntimeModels
     self.table_name = 'book_parts'
     belongs_to :book, class_name: 'DslValidationRuntimeModels::Book', optional: true
   end
+
+  # Named Book class so the `belongs_to :book` inverse on BookPart can
+  # actually resolve. (Anonymous classes with string `class_name:` references
+  # blow up inside AR reflection, which has nothing to do with what we want
+  # to exercise here.)
+  class Book < ActiveRecord::Base
+    self.table_name = 'books'
+    has_many :book_parts, class_name: 'DslValidationRuntimeModels::BookPart',
+                          foreign_key: :book_id, dependent: :destroy
+
+    include YamlExporter
+
+    yaml_structure do
+      attributes :title
+      many :book_parts, positioned_by: :position do
+        attributes :title, :content
+      end
+    end
+  end
 end
 
 # Declaration-time errors: building `yaml_structure` with an invalid combination of
@@ -70,24 +89,6 @@ class DslValidationTest < Minitest::Test
 
   # ----- Partner runtime checks --------------------------------------
 
-  def runtime_book_class
-    @runtime_book_class ||= begin
-      klass = Class.new(ActiveRecord::Base) do
-        self.table_name = 'books'
-        has_many :book_parts, class_name: 'DslValidationRuntimeModels::BookPart',
-                              foreign_key: :book_id, dependent: :destroy
-        include YamlExporter
-        yaml_structure do
-          attributes :title
-          many :book_parts, positioned_by: :position do
-            attributes :title, :content
-          end
-        end
-      end
-      klass
-    end
-  end
-
   def test_positioned_column_inside_yaml_entry_raises_on_import
     yaml = <<~YAML
       title: A book
@@ -96,7 +97,9 @@ class DslValidationTest < Minitest::Test
           content: "First"
           position: 1
     YAML
-    assert_raises(YamlExporter::UnknownAttributeError) { runtime_book_class.new.yaml_import(yaml) }
+    assert_raises(YamlExporter::UnknownAttributeError) do
+      DslValidationRuntimeModels::Book.new.yaml_import(yaml)
+    end
   end
 
   def test_undeclared_key_inside_a_yaml_entry_raises_on_import
@@ -107,6 +110,8 @@ class DslValidationTest < Minitest::Test
           content: "First"
           totally_unknown_key: nope
     YAML
-    assert_raises(YamlExporter::UnknownAttributeError) { runtime_book_class.new.yaml_import(yaml) }
+    assert_raises(YamlExporter::UnknownAttributeError) do
+      DslValidationRuntimeModels::Book.new.yaml_import(yaml)
+    end
   end
 end

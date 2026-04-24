@@ -29,7 +29,7 @@ class AttributesTest < Minitest::Test
     reloaded(book) do |book|
       assert_equal 'Ruby on Rails Tutorial', book.title
       assert_equal 'Michael Hartl', book.author
-      assert_equal BigDecimal('100'), book.price
+      assert_equal 100.0, book.price
     end
   end
 
@@ -37,11 +37,11 @@ class AttributesTest < Minitest::Test
     book = Book.create!(title: 'Ruby on Rails Tutorial', author: 'Michael Hartl', price: 100)
 
     reloaded(book) do |book|
-      parsed = YAML.safe_load(book.yaml_export, permitted_classes: [BigDecimal])
+      parsed = YAML.safe_load(book.yaml_export)
 
       assert_equal 'Ruby on Rails Tutorial', parsed['title']
       assert_equal 'Michael Hartl', parsed['author']
-      assert_equal BigDecimal('100'), parsed['price']
+      assert_equal 100.0, parsed['price']
     end
   end
 

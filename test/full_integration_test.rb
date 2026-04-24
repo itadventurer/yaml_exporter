@@ -95,7 +95,7 @@ class FullIntegrationTest < Minitest::Test
 
     reloaded(book) do |book|
       assert_equal 'Ruby on Rails Tutorial', book.title
-      assert_equal BigDecimal('100'), book.price
+      assert_equal 100.0, book.price
 
       parts = book.book_parts.order(:position).to_a
       assert_equal %w[chapter-1 chapter-2], parts.map(&:slug)

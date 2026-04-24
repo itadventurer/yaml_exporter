@@ -80,6 +80,52 @@ class SchemaTest < Minitest::Test
     assert props.key?(:price)
   end
 
+  def test_string_attribute_infers_string_type
+    assert_equal 'string', Book.yaml_schema[:properties][:title][:type]
+  end
+
+  def test_float_attribute_infers_number_type
+    assert_equal 'number', Book.yaml_schema[:properties][:price][:type]
+  end
+
+  def test_integer_attribute_infers_integer_type
+    detail_props = Book.yaml_schema[:properties][:book_detail][:properties]
+    assert_equal 'integer', detail_props[:publication_year][:type]
+  end
+
+  def test_text_attribute_infers_string_type
+    detail_props = Book.yaml_schema[:properties][:book_detail][:properties]
+    assert_equal 'string', detail_props[:summary][:type]
+  end
+
+  def test_boolean_attribute_infers_boolean_type
+    reviewers_item_props = Book.yaml_schema[:properties][:reviewers][:items][:properties]
+    assert_equal 'boolean', reviewers_item_props[:finished][:type]
+  end
+
+  def test_one_find_by_type_is_looked_up_on_target
+    # publishers.slug is a string column → type resolves via target_class.
+    assert_equal 'string', Book.yaml_schema[:properties][:publisher][:type]
+  end
+
+  def test_many_find_by_type_is_looked_up_on_target
+    # book_parts.slug on the target, not hardcoded.
+    parts_item_props = Book.yaml_schema[:properties][:book_parts][:items][:properties]
+    assert_equal 'string', parts_item_props[:slug][:type]
+  end
+
+  def test_many_reference_items_type_is_looked_up_on_target
+    # authors.slug → string, via target_class lookup (not hardcoded).
+    authors = Book.yaml_schema[:properties][:authors]
+    assert_equal 'string', authors[:items][:type]
+  end
+
+  def test_through_find_by_type_is_looked_up_on_target_not_join
+    # reviewers.slug resolves against Reviewer (target), not BookReviewer (join).
+    reviewers_item_props = Book.yaml_schema[:properties][:reviewers][:items][:properties]
+    assert_equal 'string', reviewers_item_props[:slug][:type]
+  end
+
   def test_one_with_block_becomes_nested_object_schema
     detail = Book.yaml_schema[:properties][:book_detail]
     assert_equal 'object', detail[:type]

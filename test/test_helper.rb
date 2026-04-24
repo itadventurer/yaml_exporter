@@ -19,21 +19,40 @@ module YamlFixturePaths
 end
 
 # Order matters: child tables first, then parents — otherwise FOREIGN KEY
-# constraints trip during DELETE. Edges:
+# constraints trip during DELETE. Mainline bookstore edges:
 #   book_reviewers  -> books, reviewers
 #   authors_books   -> authors, books
 #   book_parts      -> books
 #   book_details    -> books
 #   books           -> publishers
+# Edge-case coverage (non-id PK + multi-assoc-to-same-class) adds:
+#   chapters           -> books
+#   books_genres       -> books, genres
+#   genre_assignments  -> books, genres
+#   book_editors       -> books, people
+#   book_coauthors     -> books, people
+#   editorships        -> books, people
+#   coauthorships      -> books, people
+#   annotations        -> people
 BOOKSTORE_TABLES = %w[
   book_reviewers
   authors_books
   book_parts
   book_details
+  chapters
+  books_genres
+  genre_assignments
+  book_editors
+  book_coauthors
+  editorships
+  coauthorships
+  annotations
   books
   reviewers
   authors
   publishers
+  genres
+  people
 ].freeze
 
 def reset_test_database!
