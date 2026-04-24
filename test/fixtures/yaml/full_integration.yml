@@ -1,0 +1,21 @@
+title: Ruby on Rails Tutorial
+price: 100
+book_parts:
+  - slug: chapter-1
+    title: Chapter 1
+    content: "This is the first chapter of the book"
+  - slug: chapter-2
+    title: Chapter 2
+    content: "This is the second chapter of the book"
+book_detail:
+  summary: "A practical introduction to Ruby on Rails development."
+  publication_year: 2022
+authors:
+  - michael-hartl
+  - another-author
+publisher: addison-wesley
+reviewers:
+  - slug: alice
+    finished: true
+  - slug: bob
+    finished: false

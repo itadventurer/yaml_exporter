@@ -1,0 +1,48 @@
+# doc 0 — valid baseline: one part, one detail, a publisher ref
+title: Ruby on Rails Tutorial
+author: Michael Hartl
+publisher: addison-wesley
+book_detail:
+  summary: "Intro"
+  publication_year: 2022
+book_parts:
+  - slug: chapter-1
+    title: Chapter 1
+    content: "First"
+---
+# doc 1 — invalid child: book_parts[1] has blank title, should fail validation
+title: Updated Title
+author: Updated Author
+book_parts:
+  - slug: chapter-1
+    title: Chapter 1
+    content: "First"
+  - slug: chapter-2
+    title: ""
+    content: "Empty title should fail validation"
+---
+# doc 2 — duplicate find_by keys inside the same list
+title: Ruby on Rails Tutorial
+book_parts:
+  - slug: chapter-1
+    title: First copy
+    content: "a"
+  - slug: chapter-1
+    title: Second copy
+    content: "b"
+---
+# doc 3 — everything omitted except title (attributes + owned + reference all clear)
+title: Ruby on Rails Tutorial
+---
+# doc 4 — everything explicitly null
+title: Ruby on Rails Tutorial
+author: null
+publisher: null
+book_detail: null
+book_parts: []
+---
+# doc 5 — contains undeclared keys, should raise
+title: Ruby on Rails Tutorial
+some_unknown_attribute: oops
+price: 50
+author: Michael Hartl

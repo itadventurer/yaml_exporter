@@ -1,53 +1,52 @@
 # frozen_string_literal: true
 
 ActiveRecord::Schema.define do
-  create_table :quizzes, force: true do |t|
+  create_table :books, force: true do |t|
     t.string :title, null: false
-    t.string :quiz_type, null: false
+    t.string :author
+    t.decimal :price, precision: 10, scale: 2
+    t.references :publisher, foreign_key: true, null: true
+    t.string :slug
   end
 
-  create_table :questions, force: true do |t|
-    t.references :quiz, null: false, foreign_key: true
-    t.string :text, null: false
-    t.string :question_type, null: false
-    t.string :feedback
+  create_table :book_parts, force: true do |t|
+    t.references :book, null: false, foreign_key: true
+    t.string :title
+    t.text :content
     t.integer :position
+    t.string :slug
   end
 
-  create_table :answers, force: true do |t|
-    t.references :question, null: false, foreign_key: true
-    t.string :text, null: false
-    t.boolean :is_correct, null: false
-    t.integer :impact
+  create_table :book_details, force: true do |t|
+    t.references :book, null: false, foreign_key: true
+    t.text :summary
+    t.integer :publication_year
   end
 
-  create_table :trainings, force: true do |t|
+  create_table :authors, force: true do |t|
     t.string :name
+    t.string :slug
   end
 
-  create_table :vms, force: true do |t|
-    t.string :title
+  create_table :authors_books, force: true, id: false do |t|
+    t.references :author, null: false, foreign_key: true
+    t.references :book, null: false, foreign_key: true
   end
 
-  create_table :training_vms, force: true do |t|
-    t.references :training, null: false, foreign_key: true
-    t.references :vm, null: false, foreign_key: true
-    t.integer :position, default: 0, null: false
+  create_table :publishers, force: true do |t|
+    t.string :name
+    t.string :slug
   end
 
-  create_table :responses, force: true do |t|
-    t.references :quiz, null: false, foreign_key: true
-    t.references :question, null: false, foreign_key: true
-    t.references :answer, null: false, foreign_key: true
+  create_table :reviewers, force: true do |t|
+    t.string :name
+    t.string :slug
   end
 
-  create_table :articles, force: true do |t|
-    t.string :title
-    t.references :vm, foreign_key: true, null: true
-  end
-
-  create_table :article_notes, force: true do |t|
-    t.references :article, null: false, foreign_key: true
-    t.string :body
+  create_table :book_reviewers, force: true do |t|
+    t.references :book, null: false, foreign_key: true
+    t.references :reviewer, null: false, foreign_key: true
+    t.boolean :finished, default: false
+    t.integer :position
   end
 end

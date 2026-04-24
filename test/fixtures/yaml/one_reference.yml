@@ -1,0 +1,14 @@
+# doc 0 — resolves publisher by slug
+title: Ruby on Rails Tutorial
+publisher: addison-wesley
+---
+# doc 1 — points at a non-existent publisher
+title: Ruby on Rails Tutorial
+publisher: ghost-press
+---
+# doc 2 — explicit null clears publisher_id
+title: Ruby on Rails Tutorial
+publisher: null
+---
+# doc 3 — publisher key absent entirely
+title: Ruby on Rails Tutorial

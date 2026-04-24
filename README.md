@@ -285,7 +285,7 @@ book_parts:
 Reordering is now a single-line move in the YAML file, and the `position` column in the database tracks it automatically.
 
 **Edge cases**:
-* The `positioned_by:` column may **not** also appear in `attributes` — the DSL owns it. Declaring both raises at load time.
+* The `positioned_by:` column may **not** also appear in the block's `attributes` list — the DSL owns it for the owned record. Declaring both raises at load time.
 * A `position:` key (or whatever column you named) inside a YAML entry is rejected on import, for the same reason.
 * If the database has gaps, duplicates, or `NULL`s in the position column from earlier code paths, a full import rewrites them 1..N cleanly. The YAML is always the source of truth.
 * `positioned_by:` is available wherever there is an owned record to write the column onto — so with or without `find_by:`, and also in combination with `through:` (where the column lives on the join model, same as other block attributes). It is **not** available on `many :authors, find_by: :slug` (no block), since there is no owned record.
@@ -522,6 +522,8 @@ class Book < ActiveRecord::Base
   has_one :book_detail, dependent: :destroy
   has_and_belongs_to_many :authors
   belongs_to :publisher
+  has_many :book_reviewers, dependent: :destroy
+  has_many :reviewers, through: :book_reviewers
 
   include YamlExporter
 
@@ -535,6 +537,9 @@ class Book < ActiveRecord::Base
     end
     many :authors, find_by: :slug
     one :publisher, find_by: :slug
+    many :reviewers, through: :book_reviewers, find_by: :slug do
+      attributes :finished
+    end
   end
 end
 ```
@@ -558,6 +563,11 @@ authors:
   - michael-hartl
   - another-author
 publisher: addison-wesley
+reviewers:
+  - slug: alice
+    finished: true
+  - slug: bob
+    finished: false
 ```
 
 And the resulting object graph:
@@ -586,10 +596,19 @@ classDiagram
     - String name
     - String slug
   }
+  class BookReviewer {
+    - Boolean finished
+  }
+  class Reviewer {
+    - String name
+    - String slug
+  }
   Book "1" -- "*" BookPart
   Book "1" -- "1" BookDetail
   Book "*" -- "*" Author
   Book "*" -- "1" Publisher
+  Book "1" -- "*" BookReviewer
+  BookReviewer "*" -- "1" Reviewer
 ```
 
 ## Behaviors of `yaml_import` and `yaml_export`
@@ -669,6 +688,10 @@ A list of related records. The flavor is picked from the combination of `positio
 
 * `instance.yaml_import(yaml_string)` — updates `instance` in place from the YAML, inside a single transaction. Returns the instance.
 * `instance.yaml_export` — returns a YAML string for `instance` following its `yaml_structure`.
+
+### `ModelClass.yaml_schema`
+
+Returns a JSON-schema-like hash describing the YAML shape declared by `yaml_structure`. Useful for generating editor support or validating YAML out-of-band. Invalid YAML passed to `yaml_import` raises with a message pointing at the violated part of the schema.
 
 ## Development
 

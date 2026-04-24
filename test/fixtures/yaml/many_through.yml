@@ -1,0 +1,22 @@
+# doc 0 — initial import with two reviewers, out of alphabetical order
+title: Ruby on Rails Tutorial
+price: 100
+reviewers:
+  - slug: bob
+    finished: false
+  - slug: alice
+    finished: true
+---
+# doc 1 — alice removed (join row goes; reviewer untouched), bob's status flipped
+title: Ruby on Rails Tutorial
+price: 100
+reviewers:
+  - slug: bob
+    finished: true
+---
+# doc 2 — references a non-existent reviewer
+title: Ruby on Rails Tutorial
+price: 100
+reviewers:
+  - slug: ghost
+    finished: false
