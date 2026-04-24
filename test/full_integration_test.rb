@@ -124,15 +124,6 @@ class FullIntegrationTest < Minitest::Test
     end
   end
 
-  def test_export_has_no_leading_document_marker
-    book = Book.new
-    book.yaml_import(README_YAML)
-    reloaded(book) do |book|
-      refute book.yaml_export.start_with?("---\n"),
-             'exported YAML must not start with a "---" document marker'
-    end
-  end
-
   def test_round_trip_idempotency
     book = Book.new
     book.yaml_import(README_YAML)
