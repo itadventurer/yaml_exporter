@@ -1,6 +1,16 @@
 # frozen_string_literal: true
 
 ActiveRecord::Schema.define do
+  create_table :users, force: true do |t|
+    t.string :name
+    t.string :slug
+  end
+
+  create_table :corporate_users, force: true do |t|
+    t.references :user, null: true
+    t.string :name
+  end
+
   create_table :books, force: true do |t|
     t.string :title, null: false
     t.string :author
@@ -9,6 +19,8 @@ ActiveRecord::Schema.define do
     t.string :slug
     # Non-id PK edge-case: the FK to a custom-PK target (Genre, PK :code).
     t.string :primary_genre_code
+    # one :responsible_editor, find_by: :slug, of: :user coverage
+    t.integer :responsible_editor_id, null: true
   end
 
   create_table :book_parts, force: true do |t|

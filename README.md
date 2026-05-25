@@ -107,6 +107,7 @@ The arguments you pass determine both the YAML shape and who owns the record:
 | `attributes :title, :price`                                           | `title: …`, `price: …`                                                                             |
 | `one :book_detail do … end`                                           | nested hash                                                                                        |
 | `one :publisher, find_by: :slug`                                      | bare string: `publisher: some-slug`                                                                |
+| `one :responsible_editor, find_by: :slug, of: :user`                  | bare string: `responsible_editor: some-slug` (resolved via a nested association on the target)     |
 | `many :book_parts do … end`                                           | list of hashes, matched by order                                                                   |
 | `many :book_parts, find_by: :slug do … end`                           | list of hashes, matched by `slug`                                                                  |
 | `many :book_parts, find_by: :slug, positioned_by: :position do … end` | list of hashes, matched by `slug`; no `position:` key — the column is derived from the array index |
@@ -512,6 +513,73 @@ publisher: addison-wesley
 * `find_by` is **required** for a reference-flavored `one`. Without it, the only alternative would be exposing the raw foreign key (`publisher_id`) in the YAML using the `attributes` method.
 * A block is **not allowed** when `find_by` is given. The publisher owns itself — a book is just one of many records pointing at it — so the book's YAML has no business defining the publisher's attributes. Manage the publisher from its own YAML file instead.
 
+### `one` with `find_by` and `of:` (indirect reference)
+
+Sometimes the record you point at does not carry the identifying column directly — a companion record does. A classic case is a two-level identity hierarchy:
+
+```mermaid
+classDiagram
+  class User {
+    - String name
+    - String slug
+  }
+  class CorporateUser {
+    - String name
+  }
+  class Book {
+    - String title
+  }
+  CorporateUser "*" -- "1" User
+  Book "*" -- "0..1" CorporateUser : responsible_editor
+```
+
+`Book belongs_to :responsible_editor` (a `CorporateUser`), but `CorporateUser` has no slug of its own. The slug lives on the associated `User`. Storing an opaque database id in the YAML is brittle; referencing the user's slug is human-readable and stable.
+
+The `of:` keyword lets you do exactly that:
+
+```ruby
+class Book < ActiveRecord::Base
+  belongs_to :responsible_editor, class_name: 'CorporateUser',
+             foreign_key: :responsible_editor_id, optional: true
+
+  include YamlExporter
+
+  yaml_structure do
+    attributes :title
+    one :responsible_editor, find_by: :slug, of: :user
+  end
+end
+
+class CorporateUser < ActiveRecord::Base
+  belongs_to :user
+end
+
+class User < ActiveRecord::Base
+  has_one :corporate_user
+end
+```
+
+The YAML stores the user's slug:
+
+```yaml
+title: Ruby on Rails Tutorial
+responsible_editor: alice
+```
+
+On **import**, YamlExporter:
+1. Looks up `User.find_by(slug: "alice")`.
+2. Navigates back to `CorporateUser` by reversing the FK (`CorporateUser.find_by(user_id: alice.id)`).
+3. Assigns the result to `book.responsible_editor`.
+
+On **export**, `book.responsible_editor.user.slug` is emitted.
+
+**Restrictions**:
+
+* `of:` requires `find_by:` — the two always appear together.
+* A block is not allowed when `of:` is used (same ownership rule as plain `find_by:`).
+* The `of:` association must be a **1:[0,1]** relation (`belongs_to` or `has_one`). Using a `has_many` association raises at class-load time.
+* If the `of:` record exists but no target record is linked to it (e.g. a `User` with no `CorporateUser`), `ActiveRecord::RecordNotFound` is raised on import.
+
 ## Putting it all together
 
 Let us now put all together:
@@ -524,6 +592,8 @@ class Book < ActiveRecord::Base
   belongs_to :publisher
   has_many :book_reviewers, dependent: :destroy
   has_many :reviewers, through: :book_reviewers
+  belongs_to :responsible_editor, class_name: 'CorporateUser',
+             foreign_key: :responsible_editor_id, optional: true
 
   include YamlExporter
 
@@ -540,7 +610,16 @@ class Book < ActiveRecord::Base
     many :reviewers, through: :book_reviewers, find_by: :slug do
       attributes :finished
     end
+    one :responsible_editor, find_by: :slug, of: :user
   end
+end
+
+class CorporateUser < ActiveRecord::Base
+  belongs_to :user
+end
+
+class User < ActiveRecord::Base
+  has_one :corporate_user
 end
 ```
 
@@ -568,6 +647,7 @@ reviewers:
     finished: true
   - slug: bob
     finished: false
+responsible_editor: alice
 ```
 
 And the resulting object graph:
@@ -603,12 +683,21 @@ classDiagram
     - String name
     - String slug
   }
+  class CorporateUser {
+    - String name
+  }
+  class User {
+    - String name
+    - String slug
+  }
   Book "1" -- "*" BookPart
   Book "1" -- "1" BookDetail
   Book "*" -- "*" Author
   Book "*" -- "1" Publisher
   Book "1" -- "*" BookReviewer
   BookReviewer "*" -- "1" Reviewer
+  Book "*" -- "0..1" CorporateUser : responsible_editor
+  CorporateUser "*" -- "1" User
 ```
 
 ## Behaviors of `yaml_import` and `yaml_export`
@@ -657,14 +746,17 @@ All DSL methods are declared inside a `yaml_structure do … end` block on the m
 
 Columns of the model that are serialized and deserialized. Missing keys in the YAML reset the corresponding columns to `nil` on import.
 
-### `one(name, find_by: nil, &block)`
+### `one(name, find_by: nil, of: nil, &block)`
 
 A single related record. Exactly one of `find_by:` or a block must be given:
 
-| Call                         | YAML shape  | Meaning                                                             |
-| ---------------------------- | ----------- | ------------------------------------------------------------------- |
-| `one :child do … end`        | nested hash | Owned child (the `has_one` pattern).                                |
-| `one :child, find_by: :slug` | bare string | Reference to a record managed elsewhere (the `belongs_to` pattern). |
+| Call                                          | YAML shape  | Meaning                                                                                                    |
+| --------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------- |
+| `one :child do … end`                         | nested hash | Owned child (the `has_one` pattern).                                                                       |
+| `one :child, find_by: :slug`                  | bare string | Reference to a record managed elsewhere (the `belongs_to` pattern).                                        |
+| `one :child, find_by: :slug, of: :companion`  | bare string | Indirect reference: the slug lives on a companion record reachable via the `companion` association on the target. |
+
+`of:` requires `find_by:` and cannot be combined with a block. The `of:` association must be a 1:[0,1] relation (`belongs_to` or `has_one`). See [`one` with `find_by` and `of:`](#one-with-find_by-and-of-indirect-reference) for a worked example.
 
 Passing both a block and `find_by:` is rejected — see the ownership reasoning in [`one` with `find_by`](#one-with-find_by-reference).
 

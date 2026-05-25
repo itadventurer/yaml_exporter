@@ -27,14 +27,20 @@ module YamlExporter
       names.each { |n| @nodes << Nodes::Attribute.new(name: n, owner_class: @klass_resolver) }
     end
 
-    def one(name, find_by: nil, &block)
+    def one(name, find_by: nil, of: nil, &block)
       if block && find_by
         raise ArgumentError,
               "`one #{name.inspect}`: cannot combine a block (owned) with find_by: (reference). Pick one."
       end
+      if of && !find_by
+        raise ArgumentError,
+              "`one #{name.inspect}`: of: requires find_by:."
+      end
 
       if block
         @nodes << Nodes::OneOwned.new(name: name, owner_class: klass, &block)
+      elsif find_by && of
+        @nodes << Nodes::OneReferenceOf.new(name: name, owner_class: klass, find_by: find_by, of: of)
       elsif find_by
         @nodes << Nodes::OneReference.new(name: name, owner_class: klass, find_by: find_by)
       else

@@ -1,0 +1,18 @@
+# doc 0 — resolves responsible_editor via user slug
+title: Ruby on Rails Tutorial
+responsible_editor: alice
+---
+# doc 1 — points at a non-existent user slug
+title: Ruby on Rails Tutorial
+responsible_editor: ghost-user
+---
+# doc 2 — user exists but has no corporate_user linked
+title: Ruby on Rails Tutorial
+responsible_editor: orphan-user
+---
+# doc 3 — explicit null clears responsible_editor_id
+title: Ruby on Rails Tutorial
+responsible_editor: null
+---
+# doc 4 — key absent entirely
+title: Ruby on Rails Tutorial

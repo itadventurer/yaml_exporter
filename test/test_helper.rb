@@ -48,11 +48,13 @@ BOOKSTORE_TABLES = %w[
   coauthorships
   annotations
   books
+  corporate_users
   reviewers
   authors
   publishers
   genres
   people
+  users
 ].freeze
 
 def reset_test_database!
