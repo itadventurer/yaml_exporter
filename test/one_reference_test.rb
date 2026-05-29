@@ -89,11 +89,20 @@ class OneReferenceTest < Minitest::Test
     end
   end
 
-  def test_export_emits_null_when_publisher_absent
+  def test_export_omits_publisher_when_absent_by_default
     book = Book.create!(title: 'Ruby on Rails Tutorial')
 
     reloaded(book) do |book|
       parsed = YAML.safe_load(book.yaml_export)
+      refute parsed.key?('publisher')
+    end
+  end
+
+  def test_export_emits_null_when_publisher_absent_and_omit_nil_disabled
+    book = Book.create!(title: 'Ruby on Rails Tutorial')
+
+    reloaded(book) do |book|
+      parsed = YAML.safe_load(book.yaml_export(omit_nil: false))
       assert parsed.key?('publisher')
       assert_nil parsed['publisher']
     end

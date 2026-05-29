@@ -116,6 +116,30 @@ class ManyFindByTest < Minitest::Test
     end
   end
 
+  def test_export_omits_empty_list_by_default
+    book = Book.create!(title: 'No Parts')
+
+    reloaded(book) do |book|
+      refute YAML.safe_load(book.yaml_export).key?('book_parts')
+    end
+  end
+
+  # book_parts.content is a `text` column (block scalar); title is a `string`
+  # (stays inline).
+  def test_export_renders_text_column_as_block_scalar_keeping_varchar_inline
+    book = Book.create!(title: 'T')
+    BookPart.create!(book_id: book.id, slug: 'ch-1', title: 'Chapter 1',
+                     content: 'Body text here', position: 1)
+
+    reloaded(book) do |book|
+      yaml = book.yaml_export
+      assert_includes yaml, 'content: |-'
+      part = YAML.safe_load(yaml)['book_parts'].first
+      assert_equal 'Chapter 1', part['title']
+      assert_equal 'Body text here', part['content']
+    end
+  end
+
   def test_round_trip
     book = Book.new
     book.yaml_import(yaml_fixture('many_find_by', doc: 0))

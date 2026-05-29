@@ -99,12 +99,21 @@ class OneReferenceOfTest < Minitest::Test
     end
   end
 
-  def test_export_emits_null_when_editor_absent
+  def test_export_omits_editor_when_absent_by_default
     book = Book.create!(title: 'No Editor')
 
     reloaded(book) do |book|
       parsed = YAML.safe_load(book.yaml_export)
-      assert book.yaml_export.include?('responsible_editor')
+      refute parsed.key?('responsible_editor')
+    end
+  end
+
+  def test_export_emits_null_when_editor_absent_and_omit_nil_disabled
+    book = Book.create!(title: 'No Editor')
+
+    reloaded(book) do |book|
+      parsed = YAML.safe_load(book.yaml_export(omit_nil: false))
+      assert book.yaml_export(omit_nil: false).include?('responsible_editor')
       assert_nil parsed['responsible_editor']
     end
   end

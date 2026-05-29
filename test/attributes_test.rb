@@ -45,6 +45,42 @@ class AttributesTest < Minitest::Test
     end
   end
 
+  def test_export_omits_nil_attributes_by_default
+    book = Book.create!(title: 'Only Title')
+
+    reloaded(book) do |book|
+      parsed = YAML.safe_load(book.yaml_export)
+      assert_equal 'Only Title', parsed['title']
+      refute parsed.key?('author')
+      refute parsed.key?('price')
+    end
+  end
+
+  def test_export_keeps_nil_attributes_when_omit_nil_disabled
+    book = Book.create!(title: 'Only Title')
+
+    reloaded(book) do |book|
+      parsed = YAML.safe_load(book.yaml_export(omit_nil: false))
+      assert parsed.key?('author')
+      assert_nil parsed['author']
+      assert parsed.key?('price')
+      assert_nil parsed['price']
+    end
+  end
+
+  # varchar (`string`) columns stay inline no matter how long — only `text`
+  # columns switch to literal block scalars.
+  def test_export_keeps_varchar_inline_even_when_long
+    long = 'x' * 200
+    book = Book.create!(title: 'T', author: long)
+
+    reloaded(book) do |book|
+      yaml = book.yaml_export
+      refute_includes yaml, '|-'
+      assert_equal long, YAML.safe_load(yaml)['author']
+    end
+  end
+
   def test_round_trip_produces_identical_yaml
     book = Book.new
     book.yaml_import(yaml_fixture('attributes', doc: 0))

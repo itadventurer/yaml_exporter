@@ -232,6 +232,37 @@ class ManyPositionedByTest < Minitest::Test
     end
   end
 
+  def test_gapped_and_out_of_order_positions_compact_through_round_trip
+    # Seed drifted positions directly. positioned_by is DSL-owned, so these
+    # exact values (a gap at 2, and the top two inserted out of order:
+    # c=5 before d=4) cannot be expressed in YAML — they only arise in the DB.
+    #   insertion/id order: a, b, c, d
+    #   positions:          1, 3, 5, 4
+    book = SluggedBook.create!(title: 'Ruby on Rails Tutorial')
+    a = BookPart.create!(book_id: book.id, slug: 'a', title: 'A', content: 'A', position: 1)
+    b = BookPart.create!(book_id: book.id, slug: 'b', title: 'B', content: 'B', position: 3)
+    c = BookPart.create!(book_id: book.id, slug: 'c', title: 'C', content: 'C', position: 5)
+    d = BookPart.create!(book_id: book.id, slug: 'd', title: 'D', content: 'D', position: 4)
+
+    # Export sorts by position ASC, normalizing the gap and the 5/4 swap into
+    # list order: a(1), b(3), d(4), c(5).
+    exported = reloaded(book) { |bk| bk.yaml_export }
+    assert_equal %w[a b d c], YAML.safe_load(exported)['book_parts'].map { |h| h['slug'] }
+
+    # Re-import the export. find_by keeps identity (ids unchanged); positioned_by
+    # re-derives the column from the 1-based array index, closing the gap to 1..N.
+    book.yaml_import(exported)
+
+    reloaded(book) do |bk|
+      by_pos = bk.book_parts.order(:position).each_with_object({}) { |p, h| h[p.position] = p }
+      assert_equal a.id, by_pos[1].id  # 'a' stays first
+      assert_equal b.id, by_pos[2].id  # 'b' moves 3 -> 2 (gap at 2 closed)
+      assert_equal d.id, by_pos[3].id  # 'd' (was 4) now precedes 'c' (was 5)
+      assert_equal c.id, by_pos[4].id  # 'c' (was 5) lands last
+      assert_equal [1, 2, 3, 4], bk.book_parts.order(:position).pluck(:position)
+    end
+  end
+
   # ------------------------------------------------------------------
   # Variant C: through: + find_by + positioned_by (position on join)
   # ------------------------------------------------------------------

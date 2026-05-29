@@ -46,5 +46,19 @@ module YamlExporter
     rescue ActiveRecord::ActiveRecordError
       FALLBACK
     end
+
+    # True when `column_name` on `klass` is a `text` column (as opposed to a
+    # `string`/varchar). Drives whether string values export as YAML literal
+    # block scalars. Unknown/unresolvable columns are treated as non-text.
+    def self.text_column?(klass, column_name)
+      return false unless klass.respond_to?(:columns_hash)
+
+      column = klass.columns_hash[column_name.to_s]
+      return false unless column
+
+      column.type == :text
+    rescue ActiveRecord::ActiveRecordError
+      false
+    end
   end
 end

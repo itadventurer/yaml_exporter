@@ -39,8 +39,13 @@ module YamlExporter
         record.public_send("#{@name}=", value)
       end
 
+      # `text` columns export as YAML literal block scalars (`|`); we signal
+      # that by wrapping the string value in LiteralString. `string`/varchar
+      # columns stay inline regardless of length.
       def export(record, exporter:)
-        [@name.to_s, record.public_send(@name)]
+        value = record.public_send(@name)
+        value = LiteralString.new(value) if value.is_a?(::String) && text_column?
+        [@name.to_s, value]
       end
 
       def schema_fragment
@@ -48,6 +53,12 @@ module YamlExporter
       end
 
       private
+
+      def text_column?
+        return @text_column if defined?(@text_column)
+
+        @text_column = TypeInference.text_column?(owner_class, @name)
+      end
 
       def owner_class
         return nil unless @owner_class_resolver

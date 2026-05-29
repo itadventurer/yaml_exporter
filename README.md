@@ -153,10 +153,12 @@ author: Michael Hartl
 price: 100
 book_parts:
   - title: Chapter 1
-    content: "This is the first chapter of the book"
+    content: |-
+      This is the first chapter of the book
     position: 1
   - title: Chapter 2
-    content: "This is the second chapter of the book"
+    content: |-
+      This is the second chapter of the book
     position: 2
 ```
 
@@ -230,11 +232,13 @@ price: 100
 book_parts:
   - slug: chapter-1
     title: Chapter 1
-    content: "This is the first chapter of the book"
+    content: |-
+      This is the first chapter of the book
     position: 1
   - slug: chapter-2
     title: Chapter 2
-    content: "This is the second chapter of the book"
+    content: |-
+      This is the second chapter of the book
     position: 2
 ```
 
@@ -277,10 +281,12 @@ price: 100
 book_parts:
   - slug: chapter-1
     title: Chapter 1
-    content: "This is the first chapter of the book"
+    content: |-
+      This is the first chapter of the book
   - slug: chapter-2
     title: Chapter 2
-    content: "This is the second chapter of the book"
+    content: |-
+      This is the second chapter of the book
 ```
 
 Reordering is now a single-line move in the YAML file, and the `position` column in the database tracks it automatically.
@@ -451,7 +457,8 @@ title: Ruby on Rails Tutorial
 author: Michael Hartl
 price: 100
 book_detail:
-  summary: "A practical introduction to Ruby on Rails development."
+  summary: |-
+    A practical introduction to Ruby on Rails development.
   publication_year: 2022
 ```
 
@@ -631,12 +638,15 @@ price: 100
 book_parts:
   - slug: chapter-1
     title: Chapter 1
-    content: "This is the first chapter of the book"
+    content: |-
+      This is the first chapter of the book
   - slug: chapter-2
     title: Chapter 2
-    content: "This is the second chapter of the book"
+    content: |-
+      This is the second chapter of the book
 book_detail:
-  summary: "A practical introduction to Ruby on Rails development."
+  summary: |-
+    A practical introduction to Ruby on Rails development.
   publication_year: 2022
 authors:
   - michael-hartl
@@ -731,7 +741,8 @@ end
 
 **Export behavior** (mirrors the import rules):
 
-* `nil` round-trips as YAML `null`. A `nil` column is emitted as `null`; a missing `one` reference is emitted as `<key>: null`; an absent owned `one` is emitted as `<key>: null` too.
+* Empty values are omitted by default. A `nil` column, a missing `one` reference, an absent owned `one`, and an empty `many` list are all left out of the document entirely. This is round-trip safe: import treats a missing key, an explicit `null`, and an empty list the same way. To keep explicit `null`s in the file — e.g. so reviewers can discover optional fields — call `yaml_export(omit_nil: false)`. An owned `one` child that exists but has only `nil` attributes is still emitted (as `{}`) — dropping it would destroy the child on re-import.
+* `text` columns are written as YAML literal block scalars (`|`), so multi-line and long-form content stays readable and diff-friendly. `string`/varchar columns stay inline regardless of length, and non-string scalars (numbers, booleans, …) are unaffected. The choice follows the column type, not the value, so a model's files always look the same.
 * The output is a plain YAML document, without a leading `---` marker.
 * Lists are written in a stable, diff-friendly order. The rule is: take the first rule that applies, top to bottom:
   1. `many` with `positioned_by:` → sorted by the position column ASC; the column itself is omitted from each entry's hash.
@@ -779,7 +790,9 @@ A list of related records. The flavor is picked from the combination of `positio
 ### Import / export
 
 * `instance.yaml_import(yaml_string)` — updates `instance` in place from the YAML, inside a single transaction. Returns the instance.
-* `instance.yaml_export` — returns a YAML string for `instance` following its `yaml_structure`.
+* `instance.yaml_export(omit_nil: true)` — returns a YAML string for `instance` following its `yaml_structure`. With `omit_nil: true` (the default) keys whose value is empty — a `nil` attribute/reference, an absent owned child, or an empty `many` list — are left out. Pass `omit_nil: false` to keep them as explicit `null`s, which is handy when you want optional fields to stay visible in the file.
+
+Whether a string is written inline or as a literal block scalar (`|`) is decided by the database column type, not by `yaml_export` arguments: `text` columns always use block style, `string`/varchar columns always stay inline. See [Export behavior](#behaviors-of-yaml_import-and-yaml_export).
 
 ### `ModelClass.yaml_schema`
 

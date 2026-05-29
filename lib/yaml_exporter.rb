@@ -44,8 +44,15 @@ module YamlExporter
       YamlExporter::Importer.new(self, self.class.yaml_structure_definition).import(yaml_string)
     end
 
-    def yaml_export
-      YamlExporter::Exporter.new(self, self.class.yaml_structure_definition).to_yaml
+    # `omit_nil:` (default true) drops keys whose value is empty — a nil
+    # attribute, a missing `one` reference, an absent owned `one`, or an empty
+    # `many` list. Round-trip safe: import treats a missing key, an explicit
+    # `null`, and an empty list identically. Pass `omit_nil: false` to keep
+    # explicit `null`s in the file (e.g. so optional fields stay discoverable).
+    def yaml_export(omit_nil: true)
+      YamlExporter::Exporter.new(
+        self, self.class.yaml_structure_definition, omit_nil: omit_nil
+      ).to_yaml
     end
   end
 end
