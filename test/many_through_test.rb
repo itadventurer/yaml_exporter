@@ -29,10 +29,30 @@ module ManyThroughTestModels
       end
     end
   end
+
+  # Same association declared with an EMPTY block. Passing a block — even an
+  # empty one — opts into hash-shaped entries (keyed by find_by), as opposed
+  # to the bare string list you get by omitting the block entirely.
+  class BookEmptyBlock < ActiveRecord::Base
+    self.table_name = 'books'
+    has_many :book_reviewers, class_name: 'ManyThroughTestModels::BookReviewer',
+                              foreign_key: :book_id, dependent: :destroy
+    has_many :reviewers, through: :book_reviewers,
+                         class_name: 'ManyThroughTestModels::Reviewer'
+
+    include YamlExporter
+
+    yaml_structure do
+      attributes :title, :price
+      many :reviewers, through: :book_reviewers, find_by: :slug do
+      end
+    end
+  end
 end
 
 class ManyThroughTest < Minitest::Test
   Book = ManyThroughTestModels::Book
+  BookEmptyBlock = ManyThroughTestModels::BookEmptyBlock
   Reviewer = ManyThroughTestModels::Reviewer
   BookReviewer = ManyThroughTestModels::BookReviewer
 
@@ -40,6 +60,25 @@ class ManyThroughTest < Minitest::Test
     reset_test_database!
     @alice = Reviewer.create!(name: 'Alice', slug: 'alice')
     @bob   = Reviewer.create!(name: 'Bob',   slug: 'bob')
+  end
+
+  def test_empty_block_yields_hash_entries_not_bare_strings
+    book = BookEmptyBlock.new
+    book.yaml_import(<<~YAML)
+      title: Ruby on Rails Tutorial
+      price: 100.0
+      reviewers:
+        - slug: alice
+        - slug: bob
+    YAML
+
+    reloaded(book) do |book|
+      assert_equal [@alice.id, @bob.id].sort, book.reviewers.pluck(:id).sort
+
+      parsed = YAML.safe_load(book.yaml_export)
+      # Empty block still produces hashes keyed by find_by, never bare strings.
+      assert_equal [{ 'slug' => 'alice' }, { 'slug' => 'bob' }], parsed['reviewers']
+    end
   end
 
   def test_resolves_reviewer_by_slug_globally_not_scoped_through_join

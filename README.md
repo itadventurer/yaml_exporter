@@ -112,6 +112,7 @@ The arguments you pass determine both the YAML shape and who owns the record:
 | `many :book_parts, find_by: :slug do … end`                           | list of hashes, matched by `slug`                                                                  |
 | `many :book_parts, find_by: :slug, positioned_by: :position do … end` | list of hashes, matched by `slug`; no `position:` key — the column is derived from the array index |
 | `many :authors, find_by: :slug`                                       | list of bare strings                                                                               |
+| `many :reviewers, through: :book_reviewers, find_by: :slug`           | list of bare strings (join rows managed for you; add `positioned_by:` to derive a join column from order) |
 | `many :reviewers, through: :book_reviewers, find_by: :slug do … end`  | list of hashes describing join-model attributes                                                    |
 
 ### Lifecycle rules
@@ -352,7 +353,28 @@ This same flavor works for `has_and_belongs_to_many` (as above) and for any `has
 
 `has_many :through` is not a separate DSL method — how you expose it depends on whether the join model carries its own attributes.
 
-**If the join has no extra attributes** it behaves like HABTM — declare the target association as a reference list (see above).
+**If the join has no extra attributes** drop the block entirely — `many :reviewers, through: :book_reviewers, find_by: :slug` is a bare reference list, identical in shape to `many :authors, find_by: :slug` (a flat list of `find_by` values). The distinction is the *presence* of a block, not its contents: omit it for bare strings; pass one (even an empty one) to opt into hash-shaped entries. You don't have to expose the join association separately; YamlExporter still creates and destroys the join rows for you, it just doesn't ask the YAML for any join attributes:
+
+```ruby
+yaml_structure do
+  attributes :title, :price
+  many :reviewers, through: :book_reviewers, find_by: :slug
+end
+```
+
+```yaml
+title: Ruby on Rails Tutorial
+price: 100
+reviewers:
+  - alice
+  - bob
+```
+
+Add `positioned_by:` when the join carries an order column but nothing else — the column is derived from the YAML order, so the list stays a flat list of strings:
+
+```ruby
+many :reviewers, through: :book_reviewers, find_by: :slug, positioned_by: :position
+```
 
 **If the join carries its own attributes** (e.g. `finished` on a `book_reviewers` join), declare `many` on the `:through` target and pass both `through:` and `find_by:`. The block then describes attributes of the **join model**:
 

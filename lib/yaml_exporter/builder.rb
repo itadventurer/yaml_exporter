@@ -50,24 +50,22 @@ module YamlExporter
     end
 
     def many(name, find_by: nil, through: nil, positioned_by: nil, &block)
-      if positioned_by && !block
-        raise ArgumentError,
-              "`many #{name.inspect}`: positioned_by: requires a block — the column lives on the owned record."
-      end
-
       if through
         unless find_by
           raise ArgumentError,
                 "`many #{name.inspect}`: through: requires find_by: to resolve the target."
         end
-        unless block
-          raise ArgumentError,
-                "`many #{name.inspect}`: through: requires a block — join attributes live in it."
-        end
+        # A block is optional: with one, its attributes describe the join row;
+        # without one, the association is a bare reference list (and
+        # positioned_by:, when given, derives the join's position column from
+        # the YAML order). The join row itself is always managed by the DSL.
         @nodes << Nodes::ManyThrough.new(
           name: name, owner_class: klass, through: through, find_by: find_by,
           positioned_by: positioned_by, &block
         )
+      elsif positioned_by && !block
+        raise ArgumentError,
+              "`many #{name.inspect}`: positioned_by: requires a block — the column lives on the owned record."
       elsif block && find_by
         @nodes << Nodes::ManyFindBy.new(
           name: name, owner_class: klass, find_by: find_by,
