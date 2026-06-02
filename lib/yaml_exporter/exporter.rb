@@ -66,20 +66,73 @@ module YamlExporter
     def dump(hash)
       visitor = BlockScalarTree.create
       visitor << hash
-      visitor.tree.yaml
+      visitor.restore_astral(visitor.tree.yaml)
     end
 
     # Renders any LiteralString value as a literal block scalar (`|`). Plain
     # Strings and every other type fall through to Psych's default handling,
     # so the output is byte-identical to `YAML.dump` whenever no LiteralString
     # is present.
+    #
+    # Astral-plane characters (codepoints >= U+10000 — emoji, CJK Ext B, …)
+    # are the one thing that defeats block style: libyaml's emitter treats any
+    # 4-byte UTF-8 character as non-printable, and a non-printable character
+    # can only be written escaped (`\U0001F4A1`), which exists only in
+    # double-quoted style. So a single emoji silently drops the whole value
+    # back to an inline quoted scalar. BMP characters (umlauts, accents, ✓, →)
+    # are unaffected.
+    #
+    # To keep block style we swap each astral character out for a Private Use
+    # Area sentinel — which libyaml *does* consider printable — before
+    # emitting, then swap the real characters back into the finished document.
+    # The sentinels never survive in the output, and the round-trip is exact:
+    # the parser reads literal astral characters in block scalars without
+    # trouble.
     class BlockScalarTree < Psych::Visitors::YAMLTree
+      ASTRAL = /[\u{10000}-\u{10FFFF}]/
+      # U+E000/U+E001 are Private Use Area: printable to libyaml, and they
+      # never carry meaning in real text, so a `<open>digits<close>` token
+      # cannot collide with exported content.
+      SENTINEL_OPEN  = "\u{E000}"
+      SENTINEL_CLOSE = "\u{E001}"
+      SENTINEL = /#{SENTINEL_OPEN}\d+#{SENTINEL_CLOSE}/.freeze
+
       def accept(target)
         if target.is_a?(LiteralString)
-          return @emitter.scalar(target.to_s, nil, nil, true, true, Psych::Nodes::Scalar::LITERAL)
+          return @emitter.scalar(escape_astral(target.to_s), nil, nil, true, true, Psych::Nodes::Scalar::LITERAL)
         end
 
         super
+      end
+
+      # Replaces each astral character with a sentinel token, remembering the
+      # reverse mapping so #restore_astral can put the real characters back.
+      def escape_astral(text)
+        return text unless text.match?(ASTRAL)
+
+        text.gsub(ASTRAL) do |char|
+          forward[char] ||= begin
+            token = "#{SENTINEL_OPEN}#{substitutions.size}#{SENTINEL_CLOSE}"
+            substitutions[token] = char
+            token
+          end
+        end
+      end
+
+      def restore_astral(yaml)
+        return yaml if substitutions.empty?
+
+        yaml.gsub(SENTINEL) { |token| substitutions.fetch(token) }
+      end
+
+      private
+
+      def substitutions
+        @substitutions ||= {}
+      end
+
+      def forward
+        @forward ||= {}
       end
     end
   end

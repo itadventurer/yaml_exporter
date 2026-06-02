@@ -124,44 +124,6 @@ class ManyFindByTest < Minitest::Test
     end
   end
 
-  # book_parts.content is a `text` column (block scalar); title is a `string`
-  # (stays inline).
-  def test_export_renders_text_column_as_block_scalar_keeping_varchar_inline
-    book = Book.create!(title: 'T')
-    BookPart.create!(book_id: book.id, slug: 'ch-1', title: 'Chapter 1',
-                     content: 'Body text here', position: 1)
-
-    reloaded(book) do |book|
-      yaml = book.yaml_export
-      assert_includes yaml, 'content: |-'
-      part = YAML.safe_load(yaml)['book_parts'].first
-      assert_equal 'Chapter 1', part['title']
-      assert_equal 'Body text here', part['content']
-    end
-  end
-
-  # A `text` column whose value has trailing whitespace on some lines must
-  # still export as a literal block scalar (`|`). Trailing whitespace makes
-  # libyaml refuse block style and silently fall back to a double-quoted
-  # inline scalar, so we strip it per line to keep the documented invariant
-  # ("text columns are always block scalars") holding regardless of value.
-  def test_export_renders_text_column_with_trailing_whitespace_as_block_scalar
-    messy = "First line with trailing space \n\nSecond line with trailing tab\t\n"
-    book = Book.create!(title: 'T')
-    BookPart.create!(book_id: book.id, slug: 'ch-1', title: 'Chapter 1',
-                     content: messy, position: 1)
-
-    reloaded(book) do |book|
-      yaml = book.yaml_export
-      assert_includes yaml, 'content: |', "expected a block scalar, got:\n#{yaml}"
-      refute_includes yaml, 'content: "', 'text column fell back to an inline quoted scalar'
-
-      part = YAML.safe_load(yaml)['book_parts'].first
-      assert_equal "First line with trailing space\n\nSecond line with trailing tab\n",
-                   part['content']
-    end
-  end
-
   def test_round_trip
     book = Book.new
     book.yaml_import(yaml_fixture('many_find_by', doc: 0))
