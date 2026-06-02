@@ -5,7 +5,22 @@ module YamlExporter
   # scalar (`|`). Attribute nodes wrap the values of `text` columns in this so
   # the Exporter's visitor can render them as block scalars regardless of
   # length, while `string`/varchar columns stay inline.
-  class LiteralString < ::String; end
+  #
+  # Trailing whitespace on a line (a space/tab before a newline) makes
+  # libyaml's emitter refuse block style and silently fall back to a
+  # double-quoted inline scalar — which is exactly what breaks the "text
+  # columns are always block scalars" promise. Such whitespace is virtually
+  # always an accidental typo, so we strip it per line on construction. This
+  # also normalizes CR (`\r\n`/`\r`), which trips the same fallback.
+  class LiteralString < ::String
+    def self.new(value)
+      super(normalize(value.to_s))
+    end
+
+    def self.normalize(value)
+      value.split("\n", -1).map(&:rstrip).join("\n")
+    end
+  end
 
   # Walks a record + structure and emits the YAML document.
   #
