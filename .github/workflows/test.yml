@@ -1,27 +1,27 @@
 name: Test
 
 on:
-    push:
-        branches: [main]
-    pull_request:
-        branches: [main]
+  push:
+    branches: [main, find_by]
+  # No branch filter — run on every PR, including ones targeting `find_by`,
+  # so a change is tested before it is merged onto its base branch.
+  pull_request:
 
 jobs:
-    test:
-        runs-on: ubuntu-latest
-        strategy:
-            fail-fast: false
-            matrix:
-                ruby: ["3.4", "4.0"]
+  test:
+    runs-on: ubuntu-latest
+    name: Ruby ${{ matrix.ruby }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['3.2', '3.3', '3.4', '4.0']
 
-        steps:
-            - uses: actions/checkout@v4
-
-            - name: Set up Ruby
-              uses: ruby/setup-ruby@v1
-              with:
-                  ruby-version: ${{ matrix.ruby }}
-                  bundler-cache: true
-
-            - name: Run tests
-              run: bundle exec rake test
+    steps:
+      - uses: actions/checkout@v4
+      # Resolve a fresh lockfile so each Ruby gets a compatible dependency set.
+      - run: rm -f Gemfile.lock
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - run: bundle exec rake test
