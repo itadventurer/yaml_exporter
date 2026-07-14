@@ -20,11 +20,14 @@ used and can be deleted.
 
 ## Cutting a release
 
-1. **Bump the version.** Set the new version in `lib/yaml_exporter/version.rb`.
-   Open as a normal PR; merge to `main`.
+1. **Bump the version and close the changelog.** Set the new version in
+   `lib/yaml_exporter/version.rb`, and in `CHANGELOG.md` rename the
+   `## Unreleased` heading to `## vX.Y.Z`, adding a fresh empty `## Unreleased`
+   above it. Open as a normal PR; merge to `main`.
 
 2. **Publish the release** for the matching tag — the workflow expects `vX.Y.Z`
-   to equal the version in `version.rb`:
+   to equal the version in `version.rb` — using that version's changelog section
+   as the notes:
 
    ```bash
    gh release create v0.2.0 --title v0.2.0 --notes "…"
