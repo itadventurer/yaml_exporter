@@ -13,19 +13,60 @@ ActiveRecord::Base.establish_connection(
 )
 
 load File.expand_path('support/schema.rb', __dir__)
-load File.expand_path('support/models.rb', __dir__)
 
 module YamlFixturePaths
   FIXTURE_YAML_DIR = File.expand_path('fixtures/yaml', __dir__)
 end
 
-def reset_test_database!
-  [ArticleNote, Article, Response, Answer, Question, Quiz, TrainingVm, Training, Vm].each(&:delete_all)
-  return unless ActiveRecord::Base.connection.adapter_name.match?(/sqlite/i)
+# Order matters: child tables first, then parents — otherwise FOREIGN KEY
+# constraints trip during DELETE. Mainline bookstore edges:
+#   book_reviewers  -> books, reviewers
+#   authors_books   -> authors, books
+#   book_parts      -> books
+#   book_details    -> books
+#   books           -> publishers
+# Edge-case coverage (non-id PK + multi-assoc-to-same-class) adds:
+#   chapters           -> books
+#   books_genres       -> books, genres
+#   genre_assignments  -> books, genres
+#   book_editors       -> books, people
+#   book_coauthors     -> books, people
+#   editorships        -> books, people
+#   coauthorships      -> books, people
+#   annotations        -> people
+BOOKSTORE_TABLES = %w[
+  book_reviewers
+  authors_books
+  book_parts
+  book_details
+  chapters
+  books_genres
+  genre_assignments
+  book_editors
+  book_coauthors
+  editorships
+  coauthorships
+  annotations
+  books
+  corporate_users
+  reviewers
+  authors
+  publishers
+  genres
+  people
+  users
+].freeze
 
-  %w[article_notes articles responses answers questions quizzes training_vms trainings vms].each do |table|
-    ActiveRecord::Base.connection.execute(
-      "DELETE FROM sqlite_sequence WHERE name=#{ActiveRecord::Base.connection.quote(table)}"
+def reset_test_database!
+  connection = ActiveRecord::Base.connection
+  BOOKSTORE_TABLES.each do |table|
+    connection.execute("DELETE FROM #{connection.quote_table_name(table)}")
+  end
+  return unless connection.adapter_name.match?(/sqlite/i)
+
+  BOOKSTORE_TABLES.each do |table|
+    connection.execute(
+      "DELETE FROM sqlite_sequence WHERE name=#{connection.quote(table)}"
     )
   rescue ActiveRecord::StatementInvalid
     # table never had a row; sequence entry may be absent
@@ -40,5 +81,14 @@ class Minitest::Test
     raise ArgumentError, "fixture #{name}.yml: no document at index #{doc}" if doc.negative? || doc >= docs.size
 
     YAML.dump(docs[doc])
+  end
+
+  # Fetches `record` fresh from the DB by id and yields it. Use for every
+  # post-import assertion block that verifies DB state, so we never rely on
+  # the in-memory instance the importer just mutated.
+  def reloaded(record)
+    raise ArgumentError, 'reloaded() needs a persisted record' unless record.persisted?
+
+    yield record.class.find(record.id)
   end
 end

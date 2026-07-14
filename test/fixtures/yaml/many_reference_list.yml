@@ -1,0 +1,26 @@
+# doc 0 — book references two existing authors
+title: Ruby on Rails Tutorial
+price: 38
+authors:
+  - michael-hartl
+  - david-heinemeier-hansson
+---
+# doc 1 — re-ordered (order must not matter)
+title: Ruby on Rails Tutorial
+price: 38
+authors:
+  - david-heinemeier-hansson
+  - michael-hartl
+---
+# doc 2 — only one author remains; the other join row must be dropped, author itself kept
+title: Ruby on Rails Tutorial
+price: 38
+authors:
+  - michael-hartl
+---
+# doc 3 — references an author that doesn't exist; should raise RecordNotFound
+title: Ruby on Rails Tutorial
+price: 38
+authors:
+  - michael-hartl
+  - some-ghost

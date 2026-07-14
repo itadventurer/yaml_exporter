@@ -1,0 +1,50 @@
+# doc 0 — initial import, out-of-order entries (identity is by slug)
+title: Ruby on Rails Tutorial
+book_parts:
+  - slug: chapter-2
+    title: Chapter 2
+    content: "Second chapter"
+    position: 2
+  - slug: chapter-1
+    title: Chapter 1
+    content: "First chapter"
+    position: 1
+  - slug: chapter-3
+    title: Chapter 3
+    content: "Third chapter"
+    position: 3
+---
+# doc 1 — chapter-2 removed, chapter-4 added
+title: Ruby on Rails Tutorial
+book_parts:
+  - slug: chapter-1
+    title: Chapter 1 (updated)
+    content: "First chapter, revised"
+    position: 1
+  - slug: chapter-3
+    title: Chapter 3
+    content: "Third chapter"
+    position: 3
+  - slug: chapter-4
+    title: Chapter 4
+    content: "Fourth chapter"
+    position: 4
+---
+# doc 2 — single-part import targeting slug "part-1" (used in cross-book isolation test)
+title: Other Book
+book_parts:
+  - slug: part-1
+    title: Part One (updated)
+    content: "Updated content"
+    position: 1
+---
+# doc 3 — duplicate slugs inside the same list
+title: Ruby on Rails Tutorial
+book_parts:
+  - slug: chapter-1
+    title: First copy
+    content: "a"
+  - slug: chapter-1
+    title: Second copy
+    content: "b"
+---

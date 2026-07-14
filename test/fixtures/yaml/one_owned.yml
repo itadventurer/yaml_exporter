@@ -1,0 +1,18 @@
+# doc 0 — book with a book_detail
+title: Ruby on Rails Tutorial
+book_detail:
+  summary: "A practical introduction to Ruby on Rails development."
+  publication_year: 2022
+---
+# doc 1 — book_detail missing entirely (existing detail should be destroyed)
+title: Ruby on Rails Tutorial
+---
+# doc 2 — book_detail explicitly null (same as missing: destroys existing)
+title: Ruby on Rails Tutorial
+book_detail: null
+---
+# doc 3 — updated summary/publication_year (same BookDetail id kept)
+title: Ruby on Rails Tutorial
+book_detail:
+  summary: "Revised edition."
+  publication_year: 2023

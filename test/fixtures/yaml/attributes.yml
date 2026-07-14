@@ -1,0 +1,24 @@
+# doc 0 — full import
+title: Ruby on Rails Tutorial
+author: Michael Hartl
+price: 100
+---
+# doc 1 — missing author and price (both should reset to nil)
+title: Ruby on Rails Tutorial
+---
+# doc 2 — explicit null values
+title: Ruby on Rails Tutorial
+author: null
+price: null
+---
+# doc 3 — extra keys not declared in yaml_structure (should raise YamlExporter::UnknownAttributeError)
+title: Ruby on Rails Tutorial
+author: Michael Hartl
+price: 100
+slug: extra-key
+publisher_id: 42
+---
+# doc 4 — title is null; should raise an AR exception
+title: null
+author: Michael Hartl
+price: 100

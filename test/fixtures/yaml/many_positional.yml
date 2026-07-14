@@ -1,0 +1,51 @@
+# doc 0 — initial import with three parts
+title: Ruby on Rails Tutorial
+book_parts:
+  - title: Chapter 1
+    content: "First chapter"
+    position: 1
+  - title: Chapter 2
+    content: "Second chapter"
+    position: 2
+  - title: Chapter 3
+    content: "Third chapter"
+    position: 3
+---
+# doc 1 — reduced to two parts (third should be destroyed)
+title: Ruby on Rails Tutorial
+book_parts:
+  - title: Chapter 1
+    content: "First chapter"
+    position: 1
+  - title: Chapter 2
+    content: "Second chapter"
+    position: 2
+---
+# doc 2 — grown to four parts (fourth should be created)
+title: Ruby on Rails Tutorial
+book_parts:
+  - title: Chapter 1
+    content: "First chapter"
+    position: 1
+  - title: Chapter 2
+    content: "Second chapter"
+    position: 2
+  - title: Chapter 3
+    content: "Third chapter"
+    position: 3
+  - title: Chapter 4
+    content: "Fourth chapter"
+    position: 4
+---
+# doc 3 — swapped first two entries (footgun: overwrites by index, same ids)
+title: Ruby on Rails Tutorial
+book_parts:
+  - title: Chapter 2
+    content: "Second chapter"
+    position: 2
+  - title: Chapter 1
+    content: "First chapter"
+    position: 1
+  - title: Chapter 3
+    content: "Third chapter"
+    position: 3
