@@ -351,66 +351,12 @@ This same flavor works for `has_and_belongs_to_many` (as above) and for any `has
 * If the database has more associations than the yaml file, the extra associations are removed — for HABTM only the join rows are removed, the referenced records themselves are left untouched.
 * The order of the entries in the yaml file doesn't matter.
 
-### `many` with `find_by` and `of:` (indirect reference list)
-
-Just like [`one … find_by: of:`](#one-with-find_by-and-of-indirect-reference), a reference **list** can identify each target through a companion record rather than by a column on the target itself. This is the list counterpart of the two-level identity hierarchy: the book references `CorporateUser`s, but the human-readable slug lives on each `CorporateUser`'s associated `User`.
-
-```mermaid
-classDiagram
-  class User {
-    - String name
-    - String slug
-  }
-  class CorporateUser {
-    - String name
-  }
-  class Book {
-    - String title
-  }
-  CorporateUser "*" -- "1" User
-  Book "*" -- "*" CorporateUser : corporate_reviewers
-```
-
-Add `of:` to the reference list — the YAML stays a flat list of user slugs:
+`of:` works on reference lists too, exactly as it does for [`one`](#one-with-find_by-and-of-indirect-reference) — the YAML value is a column on a companion record (`of:`) instead of on the target. It applies to both the plain and the `through:` reference list:
 
 ```ruby
-class Book < ActiveRecord::Base
-  has_and_belongs_to_many :corporate_reviewers, class_name: 'CorporateUser'
-
-  include YamlExporter
-
-  yaml_structure do
-    attributes :title
-    many :corporate_reviewers, find_by: :slug, of: :user
-  end
-end
-
-class CorporateUser < ActiveRecord::Base
-  belongs_to :user
-end
+many :corporate_reviewers, find_by: :slug, of: :user
+many :editorial_editors, through: :editor_assignments, find_by: :slug, of: :user
 ```
-
-```yaml
-title: Ruby on Rails Tutorial
-corporate_reviewers:
-  - alice
-  - bob
-```
-
-On **import**, each slug is resolved via `User.find_by(slug: …)` and then reversed back to the `CorporateUser` (the same navigation as `one … of:`); on **export**, each target's `user.slug` is emitted.
-
-`of:` also works on the `through:` flavor, so a join-model reference list can likewise be keyed by the related slug (add `positioned_by:` to derive the join's position from the YAML order):
-
-```ruby
-many :editorial_editors, through: :editor_assignments,
-                         find_by: :slug, of: :user, positioned_by: :position
-```
-
-**Restrictions** (identical to `one … of:`):
-
-* `of:` requires `find_by:` and cannot be combined with a block — it is only for reference lists.
-* The `of:` association must be a **1:[0,1]** relation (`belongs_to` or `has_one`); a `has_many` raises at class-load time.
-* If a referenced record (or its `of:` companion) is missing, `ActiveRecord::RecordNotFound` is raised — nothing is auto-created.
 
 ### `many` with `through:` (has_many :through with join attributes)
 
@@ -874,7 +820,7 @@ A list of related records. The flavor is picked from the combination of `positio
 
 `positioned_by:` requires a block – there must be an owned record to write the column onto – and therefore cannot be used with the plain reference-list flavor of `many` (it *is* allowed on the `through:` reference list, where it drives the join's position column).
 
-`of:` requires `find_by:` and cannot be combined with a block. The `of:` association must be a 1:[0,1] relation (`belongs_to` or `has_one`). See [`many` with `find_by` and `of:`](#many-with-find_by-and-of-indirect-reference-list) for a worked example.
+`of:` requires `find_by:` and cannot be combined with a block, and the `of:` association must be a 1:[0,1] relation (`belongs_to` or `has_one`) — same rules and semantics as [`one … of:`](#one-with-find_by-and-of-indirect-reference).
 
 ### Import / export
 
