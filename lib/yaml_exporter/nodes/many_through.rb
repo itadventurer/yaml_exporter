@@ -16,15 +16,18 @@ module YamlExporter
     # the reference flavor: passing a block (empty or not) opts into the
     # hash-shaped entries, same as the other `many` flavors.
     class ManyThrough < ManyBase
-      attr_reader :through
+      include OfResolution
 
-      def initialize(name:, owner_class:, through:, find_by:, positioned_by: nil, &block)
+      attr_reader :through, :of
+
+      def initialize(name:, owner_class:, through:, find_by:, positioned_by: nil, of: nil, &block)
         # Whether a block was passed (even an empty one) decides the YAML
         # shape: block → hash entries, no block → bare reference list.
         @reference_list = block.nil?
         block ||= proc {}
 
         @through = through.to_sym
+        @of = of&.to_sym
         join_reflection = owner_class.reflect_on_association(@through)
         unless join_reflection
           raise ArgumentError,
@@ -33,6 +36,8 @@ module YamlExporter
 
         super(name: name, owner_class: owner_class, find_by: find_by,
               positioned_by: positioned_by, &block)
+
+        validate_of_reflection!("many #{name.inspect}") if @of
       end
 
       # No block was passed → the YAML is a flat list of find_by values
@@ -63,10 +68,9 @@ module YamlExporter
 
       def find_or_build_child(parent, entry, _index, existing:)
         key = entry[@find_by.to_s]
-        target = target_class.find_by(@find_by => key)
+        target = @of ? resolve_target_by_of(key) : target_class.find_by(@find_by => key)
         unless target
-          raise ActiveRecord::RecordNotFound,
-                "no #{target_class} with #{@find_by}=#{key.inspect}"
+          raise ActiveRecord::RecordNotFound, not_found_message(key)
         end
 
         # Match existing join rows by comparing the source association
@@ -87,7 +91,7 @@ module YamlExporter
       def default_export_order(records)
         records.sort_by do |join|
           target = join.public_send(source_association_name)
-          target.public_send(@find_by).to_s
+          key_for(target).to_s
         end
       end
 
@@ -96,7 +100,7 @@ module YamlExporter
       def export(parent, exporter:)
         records = sort_for_export(Array(parent.public_send(@through)))
         if reference_list?
-          keys = records.map { |join| join.public_send(source_association_name).public_send(@find_by) }
+          keys = records.map { |join| key_for(join.public_send(source_association_name)) }
           return [@name.to_s, keys]
         end
 
@@ -158,11 +162,26 @@ module YamlExporter
       def schema_fragment
         return super unless reference_list?
 
-        item_type = TypeInference.schema_type_for(target_class, @find_by)
+        key_class = @of ? of_class : target_class
+        item_type = TypeInference.schema_type_for(key_class, @find_by)
         { @name => { type: 'array', items: { type: item_type } } }
       end
 
       private
+
+      # The YAML value for a resolved target: with `of:` it lives on a related
+      # model; otherwise it's the find_by column on the target itself.
+      def key_for(target)
+        @of ? of_value_for(target) : target.public_send(@find_by)
+      end
+
+      def not_found_message(key)
+        if @of
+          "no #{target_class} for #{of_class} with #{@find_by}=#{key.inspect} via `#{@of}`"
+        else
+          "no #{target_class} with #{@find_by}=#{key.inspect}"
+        end
+      end
 
       def source_reflection
         @source_reflection ||= @owner_class.reflect_on_association(@name).source_reflection

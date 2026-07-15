@@ -112,7 +112,9 @@ The arguments you pass determine both the YAML shape and who owns the record:
 | `many :book_parts, find_by: :slug do … end`                           | list of hashes, matched by `slug`                                                                  |
 | `many :book_parts, find_by: :slug, positioned_by: :position do … end` | list of hashes, matched by `slug`; no `position:` key — the column is derived from the array index |
 | `many :authors, find_by: :slug`                                       | list of bare strings                                                                               |
+| `many :editorial_editors, find_by: :slug, of: :user`                  | list of bare strings, each resolved via a nested association on the target                          |
 | `many :reviewers, through: :book_reviewers, find_by: :slug`           | list of bare strings (join rows managed for you; add `positioned_by:` to derive a join column from order) |
+| `many :editorial_editors, through: :editor_assignments, find_by: :slug, of: :user` | list of bare strings, each resolved via a nested association on the target        |
 | `many :reviewers, through: :book_reviewers, find_by: :slug do … end`  | list of hashes describing join-model attributes                                                    |
 
 ### Lifecycle rules
@@ -348,6 +350,67 @@ This same flavor works for `has_and_belongs_to_many` (as above) and for any `has
 * If a referenced author does not exist in the database, `ActiveRecord::RecordNotFound` is raised — the library never auto-creates referenced records.
 * If the database has more associations than the yaml file, the extra associations are removed — for HABTM only the join rows are removed, the referenced records themselves are left untouched.
 * The order of the entries in the yaml file doesn't matter.
+
+### `many` with `find_by` and `of:` (indirect reference list)
+
+Just like [`one … find_by: of:`](#one-with-find_by-and-of-indirect-reference), a reference **list** can identify each target through a companion record rather than by a column on the target itself. This is the list counterpart of the two-level identity hierarchy: the book references `CorporateUser`s, but the human-readable slug lives on each `CorporateUser`'s associated `User`.
+
+```mermaid
+classDiagram
+  class User {
+    - String name
+    - String slug
+  }
+  class CorporateUser {
+    - String name
+  }
+  class Book {
+    - String title
+  }
+  CorporateUser "*" -- "1" User
+  Book "*" -- "*" CorporateUser : corporate_reviewers
+```
+
+Add `of:` to the reference list — the YAML stays a flat list of user slugs:
+
+```ruby
+class Book < ActiveRecord::Base
+  has_and_belongs_to_many :corporate_reviewers, class_name: 'CorporateUser'
+
+  include YamlExporter
+
+  yaml_structure do
+    attributes :title
+    many :corporate_reviewers, find_by: :slug, of: :user
+  end
+end
+
+class CorporateUser < ActiveRecord::Base
+  belongs_to :user
+end
+```
+
+```yaml
+title: Ruby on Rails Tutorial
+corporate_reviewers:
+  - alice
+  - bob
+```
+
+On **import**, each slug is resolved via `User.find_by(slug: …)` and then reversed back to the `CorporateUser` (the same navigation as `one … of:`); on **export**, each target's `user.slug` is emitted.
+
+`of:` also works on the `through:` flavor, so a join-model reference list can likewise be keyed by the related slug (add `positioned_by:` to derive the join's position from the YAML order):
+
+```ruby
+many :editorial_editors, through: :editor_assignments,
+                         find_by: :slug, of: :user, positioned_by: :position
+```
+
+**Restrictions** (identical to `one … of:`):
+
+* `of:` requires `find_by:` and cannot be combined with a block — it is only for reference lists.
+* The `of:` association must be a **1:[0,1]** relation (`belongs_to` or `has_one`); a `has_many` raises at class-load time.
+* If a referenced record (or its `of:` companion) is missing, `ActiveRecord::RecordNotFound` is raised — nothing is auto-created.
 
 ### `many` with `through:` (has_many :through with join attributes)
 
@@ -793,9 +856,9 @@ A single related record. Exactly one of `find_by:` or a block must be given:
 
 Passing both a block and `find_by:` is rejected — see the ownership reasoning in [`one` with `find_by`](#one-with-find_by-reference).
 
-### `many(name, positioned_by: nil, find_by: nil, through: nil, &block)`
+### `many(name, positioned_by: nil, find_by: nil, through: nil, of: nil, &block)`
 
-A list of related records. The flavor is picked from the combination of `positioned_by:`, `find_by:`, `through:` and a block:
+A list of related records. The flavor is picked from the combination of `positioned_by:`, `find_by:`, `through:`, `of:` and a block:
 
 | Call                                                                             | YAML shape                                      | Meaning                                                                                                         |
 | -------------------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -804,10 +867,14 @@ A list of related records. The flavor is picked from the combination of `positio
 | `many :children, find_by: :slug do … end`                                        | list of hashes containing the `slug:` key       | Children fully managed, identity by a stable column.                                                            |
 | `many :children, find_by: :slug, positioned_by: :position do … end`              | same as above, without `position:` in each hash | Like the previous row, but the named column is derived from the 1-based array index (and omitted on export).    |
 | `many :children, find_by: :slug`                                                 | list of bare strings                            | Children referenced by key, managed elsewhere (HABTM pattern).                                                  |
+| `many :children, find_by: :slug, of: :companion`                                 | list of bare strings                            | Reference list keyed indirectly: each value lives on a `companion` (1:[0,1]) association of the target.         |
 | `many :children, through: :joins, find_by: :slug do … end`                       | list of hashes containing the `slug:` key       | `has_many :through` where the block describes attributes of the **join model**.                                 |
 | `many :children, through: :joins, find_by: :slug, positioned_by: :position do …` | same as above, without `position:` in each hash | As above, with the position column derived on the **join model**.                                               |
+| `many :children, through: :joins, find_by: :slug, of: :companion`                | list of bare strings                            | Join-model reference list keyed indirectly via the target's `companion` association (`positioned_by:` optional).|
 
-`positioned_by:` requires a block – there must be an owned record to write the column onto – and therefore cannot be used with the reference-list flavor of `many`.
+`positioned_by:` requires a block – there must be an owned record to write the column onto – and therefore cannot be used with the plain reference-list flavor of `many` (it *is* allowed on the `through:` reference list, where it drives the join's position column).
+
+`of:` requires `find_by:` and cannot be combined with a block. The `of:` association must be a 1:[0,1] relation (`belongs_to` or `has_one`). See [`many` with `find_by` and `of:`](#many-with-find_by-and-of-indirect-reference-list) for a worked example.
 
 ### Import / export
 
