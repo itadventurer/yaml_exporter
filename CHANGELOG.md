@@ -5,6 +5,8 @@ This project follows [semantic versioning](https://semver.org).
 
 ## Unreleased
 
+## v0.2.1
+
 ### Added
 
 - `of:` on `many` reference lists. Both `many :assoc, find_by: :col, of: :nested`
