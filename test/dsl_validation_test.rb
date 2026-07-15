@@ -87,6 +87,26 @@ class DslValidationTest < Minitest::Test
     end
   end
 
+  def test_many_of_without_find_by_raises_at_class_load
+    assert_raises(ArgumentError) do
+      define_book do
+        attributes :title
+        many :reviewers, of: :user
+      end
+    end
+  end
+
+  def test_many_of_with_block_raises_at_class_load
+    assert_raises(ArgumentError) do
+      define_book do
+        attributes :title
+        many :reviewers, find_by: :slug, of: :user do
+          attributes :finished
+        end
+      end
+    end
+  end
+
   # ----- Partner runtime checks --------------------------------------
 
   def test_positioned_column_inside_yaml_entry_raises_on_import

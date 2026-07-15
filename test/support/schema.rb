@@ -11,6 +11,22 @@ ActiveRecord::Schema.define do
     t.string :name
   end
 
+  # of:-on-many coverage: a Book references CorporateUsers indirectly, by the
+  # slug of the User behind each CorporateUser.
+  #
+  # has_many :through join (carries a position for ordered reference lists).
+  create_table :editor_assignments, force: true do |t|
+    t.references :book, null: false, foreign_key: true
+    t.references :corporate_user, null: false
+    t.integer :position
+  end
+
+  # HABTM join for the plain (non-through) reference-list flavor.
+  create_table :books_corporate_users, id: false, force: true do |t|
+    t.references :book, null: false, foreign_key: true
+    t.references :corporate_user, null: false
+  end
+
   create_table :books, force: true do |t|
     t.string :title, null: false
     t.string :author

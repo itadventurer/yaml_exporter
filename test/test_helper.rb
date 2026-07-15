@@ -36,6 +36,8 @@ end
 #   annotations        -> people
 BOOKSTORE_TABLES = %w[
   book_reviewers
+  editor_assignments
+  books_corporate_users
   authors_books
   book_parts
   book_details

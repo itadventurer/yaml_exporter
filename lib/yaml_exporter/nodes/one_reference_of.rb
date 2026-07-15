@@ -16,6 +16,8 @@ module YamlExporter
     # Only 1:[0,1] `of:` associations are permitted (belongs_to or has_one).
     # Phase: :pre_save (sets the FK before record.save!).
     class OneReferenceOf
+      include OfResolution
+
       attr_reader :name, :owner_class, :find_by, :of
 
       def initialize(name:, owner_class:, find_by:, of:)
@@ -30,17 +32,7 @@ module YamlExporter
                 "`one #{name.inspect}`: #{owner_class} has no association `#{name}`"
         end
 
-        of_ref = target_class.reflect_on_association(@of)
-        unless of_ref
-          raise ArgumentError,
-                "`one #{name.inspect}, of: #{of.inspect}`: #{target_class} has no association `#{of}`"
-        end
-
-        unless singular_association?(of_ref)
-          raise ArgumentError,
-                "`one #{name.inspect}, of: #{of.inspect}`: `of:` must be a 1:[0,1] association " \
-                "(belongs_to or has_one); got #{of_ref.macro}"
-        end
+        validate_of_reflection!("one #{name.inspect}")
       end
 
       def phase
@@ -63,16 +55,16 @@ module YamlExporter
           return
         end
 
-        through = through_class.find_by(@find_by => value)
-        unless through
+        related = of_class.find_by(@find_by => value)
+        unless related
           raise ActiveRecord::RecordNotFound,
-                "no #{through_class} with #{@find_by}=#{value.inspect}"
+                "no #{of_class} with #{@find_by}=#{value.inspect}"
         end
 
-        target = find_target_via(through)
+        target = find_target_via(related)
         unless target
           raise ActiveRecord::RecordNotFound,
-                "no #{target_class} linked to #{through_class} #{@find_by}=#{value.inspect} via `#{@of}`"
+                "no #{target_class} linked to #{of_class} #{@find_by}=#{value.inspect} via `#{@of}`"
         end
 
         record.public_send("#{@name}=", target)
@@ -82,46 +74,11 @@ module YamlExporter
         target = record.public_send(@name)
         return [@name.to_s, nil] if target.nil?
 
-        through = target.public_send(@of)
-        return [@name.to_s, nil] if through.nil?
-
-        [@name.to_s, through.public_send(@find_by)]
+        [@name.to_s, of_value_for(target)]
       end
 
       def schema_fragment
-        { @name => { type: TypeInference.schema_type_for(through_class, @find_by) } }
-      end
-
-      private
-
-      def of_reflection
-        @of_reflection ||= target_class.reflect_on_association(@of)
-      end
-
-      def through_class
-        @through_class ||= of_reflection.klass
-      end
-
-      # Navigate from a resolved `through` record back to the target.
-      #
-      # belongs_to (:user on CorporateUser): FK is on the target.
-      #   target_class.find_by(user_id: through.id)
-      #
-      # has_one (:profile on CorporateUser): FK is on the through record.
-      #   target_class.find_by(id: through.corporate_user_id)
-      def find_target_via(through)
-        if of_reflection.is_a?(ActiveRecord::Reflection::BelongsToReflection)
-          pk_val = through.public_send(of_reflection.association_primary_key)
-          target_class.find_by(of_reflection.foreign_key => pk_val)
-        else # has_one
-          fk_val = through.public_send(of_reflection.foreign_key)
-          target_class.find_by(of_reflection.association_primary_key => fk_val)
-        end
-      end
-
-      def singular_association?(reflection)
-        reflection.is_a?(ActiveRecord::Reflection::BelongsToReflection) ||
-          reflection.is_a?(ActiveRecord::Reflection::HasOneReflection)
+        { @name => { type: TypeInference.schema_type_for(of_class, @find_by) } }
       end
     end
   end

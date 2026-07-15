@@ -5,6 +5,17 @@ This project follows [semantic versioning](https://semver.org).
 
 ## Unreleased
 
+## v0.2.1
+
+### Added
+
+- `of:` on `many` reference lists. Both `many :assoc, find_by: :col, of: :nested`
+  and the `through:` flavor `many :assoc, through: :join, find_by: :col, of: :nested`
+  now identify each target indirectly via a 1:[0,1] association on the target
+  (`of:`), mirroring the existing `one … find_by: of:` semantics. The YAML stays
+  a flat list of the related model's `find_by` values (e.g. user slugs) instead
+  of requiring a nested block of hashes.
+
 ## v0.2.0
 
 A ground-up rewrite of the export/import engine and its DSL. **Breaking: nothing

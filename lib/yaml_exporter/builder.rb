@@ -49,7 +49,17 @@ module YamlExporter
       end
     end
 
-    def many(name, find_by: nil, through: nil, positioned_by: nil, &block)
+    def many(name, find_by: nil, through: nil, positioned_by: nil, of: nil, &block)
+      if of && !find_by
+        raise ArgumentError,
+              "`many #{name.inspect}`: of: requires find_by:."
+      end
+      if of && block
+        raise ArgumentError,
+              "`many #{name.inspect}`: of: cannot combine with a block — of: only applies to " \
+              'reference lists (no block).'
+      end
+
       if through
         unless find_by
           raise ArgumentError,
@@ -61,7 +71,7 @@ module YamlExporter
         # the YAML order). The join row itself is always managed by the DSL.
         @nodes << Nodes::ManyThrough.new(
           name: name, owner_class: klass, through: through, find_by: find_by,
-          positioned_by: positioned_by, &block
+          positioned_by: positioned_by, of: of, &block
         )
       elsif positioned_by && !block
         raise ArgumentError,
@@ -76,7 +86,7 @@ module YamlExporter
           name: name, owner_class: klass, positioned_by: positioned_by, &block
         )
       elsif find_by
-        @nodes << Nodes::ManyReference.new(name: name, owner_class: klass, find_by: find_by)
+        @nodes << Nodes::ManyReference.new(name: name, owner_class: klass, find_by: find_by, of: of)
       else
         raise ArgumentError,
               "`many #{name.inspect}`: pass either find_by: (reference list), a block (owned), " \
