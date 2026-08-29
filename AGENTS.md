@@ -5,6 +5,10 @@ human-readable YAML file and imports it back in one transaction. A three-method
 DSL (`attributes`, `one`, `many`) declares the mapping. It is a library: no
 server, no database service, nothing to boot.
 
+`CLAUDE.md` in this directory is a symlink to this file, and so is every
+`CLAUDE.md` next to a nested `AGENTS.md`: Claude Code discovers `CLAUDE.md`,
+other tools discover `AGENTS.md`, and there is only one file to maintain.
+
 `README.md` is the front door and the reference for the DSL; `RELEASING.md`
 describes how a version reaches RubyGems.
 
